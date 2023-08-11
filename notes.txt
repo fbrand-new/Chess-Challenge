@@ -1,0 +1,4 @@
+TODO:
+ - It is throwing some illegal moves when it is close to being checkmated
+ - It is chilling way too much. Give him some basic knowledge (play a certain line) and try to push him to develop a bit more.
+ - Depth is not huge now, need to have better move ordering. (maybe this solves 2 already, so it is higher priority)
