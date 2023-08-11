@@ -1,54 +1,123 @@
 ﻿using ChessChallenge.API;
 using System;
 
-namespace ChessChallenge.Example
+public class EvilBot : IChessBot
 {
-    // A simple bot that can spot mate in one, and always captures the most valuable piece it can.
-    // Plays randomly otherwise.
-    public class EvilBot : IChessBot
+    int pawnVal;
+    int knightVal;
+    int bishopVal;
+    int rookVal;
+    int queenVal;
+
+    public EvilBot()
     {
-        // Piece values: null, pawn, knight, bishop, rook, queen, king
-        int[] pieceValues = { 0, 100, 300, 300, 500, 900, 10000 };
+        this.pawnVal = 10;
+        this.knightVal = 30;
+        this.bishopVal = 30;
+        this.rookVal = 50;
+        this.queenVal = 120;
+    }
 
-        public Move Think(Board board, Timer timer)
+    public Move Think(Board board, Timer timer)
+    {
+        Move[] moves = board.GetLegalMoves();
+        Move move = BestMove(board);
+        return move;
+    }
+
+    public int Eval(Board board, bool white)
+    {
+        PieceList[] all_pieces = board.GetAllPieceLists();
+      
+        int whiteVal = 0;
+        int blackVal = 0;
+    
+        foreach(PieceList pieces in all_pieces)
         {
-            Move[] allMoves = board.GetLegalMoves();
+            int piece_count = pieces.Count;
+            bool white_piece = pieces.IsWhitePieceList;
+            PieceType piece_type = pieces.TypeOfPieceInList;
 
-            // Pick a random move to play if nothing better is found
-            Random rng = new();
-            Move moveToPlay = allMoves[rng.Next(allMoves.Length)];
-            int highestValueCapture = 0;
+            // Console.Write("piece_count: " + piece_count + "\n");
+            // Console.Write("piece_type: " + piece_type + "\n");
 
-            foreach (Move move in allMoves)
+            int val = 0; 
+            if(piece_type == PieceType.Pawn)
             {
-                // Always play checkmate in one
-                if (MoveIsCheckmate(board, move))
-                {
-                    moveToPlay = move;
-                    break;
-                }
-
-                // Find highest value capture
-                Piece capturedPiece = board.GetPiece(move.TargetSquare);
-                int capturedPieceValue = pieceValues[(int)capturedPiece.PieceType];
-
-                if (capturedPieceValue > highestValueCapture)
-                {
-                    moveToPlay = move;
-                    highestValueCapture = capturedPieceValue;
-                }
+                val = pawnVal;
+            }
+            else if(piece_type == PieceType.Knight)
+            {
+                val = knightVal;
+            }
+            else if(piece_type == PieceType.Bishop)
+            {
+                val = bishopVal;
+            }
+            else if(piece_type == PieceType.Rook)
+            {
+                val = rookVal;
+            }
+            else if(piece_type == PieceType.Queen)
+            {
+                val = queenVal;
             }
 
-            return moveToPlay;
+            if(white_piece)
+            {
+                whiteVal += piece_count*val;
+            }
+            else
+            {
+                blackVal += piece_count*val;
+            }
+    
+        }
+      
+        int retval = (whiteVal - blackVal)*(white ? 1 : -1);
+
+        return retval;
+        
+    }
+
+    public (Move,int) Search(Board board, int depth, bool white)
+    {
+        if(depth == 0)
+        {
+            return (new Move {},-Eval(board,white));
         }
 
-        // Test if this move gives checkmate
-        bool MoveIsCheckmate(Board board, Move move)
+        Move[] moves = board.GetLegalMoves();
+        Move bestMove = new Move {};
+        int max = -1000;
+        foreach(Move move in moves)
         {
             board.MakeMove(move);
-            bool isMate = board.IsInCheckmate();
+            (_, int score) = Search(board,depth-1,white);
+            score = -score;
+
+            Console.Write(move+"\n");
+            Console.Write("score:" + score + "\n");
+            if(score >= max)
+            {
+                Console.Write("Overwriting best move \n");
+                max = score;
+                bestMove = move;
+            }
             board.UndoMove(move);
-            return isMate;
         }
+
+        return (bestMove,max);
     }
+
+    public Move BestMove(Board board)
+    {
+        (Move bestMove, int score) = Search(board,3,board.IsWhiteToMove);
+
+        Console.Write("\n\n");
+        Console.Write("Best move: " + bestMove);
+        Console.Write("\n\n");
+        return bestMove;
+    } 
+
 }

@@ -1,5 +1,6 @@
 ﻿using ChessChallenge.API;
 using System;
+using System.Diagnostics;
 
 public class MyBot : IChessBot
 {
@@ -20,12 +21,11 @@ public class MyBot : IChessBot
 
     public Move Think(Board board, Timer timer)
     {
-        Move[] moves = board.GetLegalMoves();
         Move move = BestMove(board);
         return move;
     }
 
-    public int Eval(Board board, bool white)
+    public int Eval(Board board)
     {
         PieceList[] all_pieces = board.GetAllPieceLists();
       
@@ -73,50 +73,84 @@ public class MyBot : IChessBot
             }
     
         }
-      
-        int retval = (whiteVal - blackVal)*(white ? 1 : -1);
+     
+        // Console.Write("iswhite: " + white);
+        // Console.WriteLine("whiteval:" + whiteVal);
+        // Console.WriteLine("blackVal:" + blackVal);
+        int retval = (whiteVal - blackVal)*(board.IsWhiteToMove? 1 : -1);
 
         return retval;
         
     }
 
-    public (Move,int) Search(Board board, int depth, bool white)
+    public double Search(Board board, int depth,double beta,
+                            double alpha, ref Move bestMove,
+                            int maxDepth)
     {
+
         if(depth == 0)
         {
-            return (new Move {},-Eval(board,white));
+            return Eval(board);
         }
 
         Move[] moves = board.GetLegalMoves();
-        Move bestMove = new Move {};
-        int max = -1000;
+        
+        if(moves.Length == 0)
+        {
+            Debug.Write("No possible move?");
+            if (board.IsInCheck())
+            {
+                return double.NegativeInfinity; //checkmate
+            }
+
+            return 0; //stalemate
+        }
+
+
         foreach(Move move in moves)
         {
             board.MakeMove(move);
-            (_, int score) = Search(board,depth-1,white);
-            score = -score;
-
-            Console.Write(move+"\n");
-            Console.Write("score:" + score + "\n");
-            if(score >= max)
+            double score = -Search(board,depth-1,
+                                    -alpha,-beta,ref bestMove,maxDepth);
+            if(depth == maxDepth)
             {
-                Console.Write("Overwriting best move \n");
-                max = score;
-                bestMove = move;
+                // Console.Write(move + "\n");
+                // Console.Write("score:" + score + "\n");
+                // Console.Write("beta:" + beta + "\n");
+            }
+
+            if(score >= beta)
+            {
+                board.UndoMove(move);
+                return beta;
+            }
+
+            if(score > alpha)
+            {
+                if(depth == maxDepth)
+                {
+                    bestMove = move;
+                }
+                alpha = score;
             }
             board.UndoMove(move);
         }
 
-        return (bestMove,max);
+        return alpha;
     }
 
     public Move BestMove(Board board)
     {
-        (Move bestMove, int score) = Search(board,3,board.IsWhiteToMove);
+        Move bestMove = new Move {};
+        int maxDepth = 5;
+        double score = Search(board,maxDepth,
+                                    Double.PositiveInfinity,
+                                    Double.NegativeInfinity,
+                                    ref bestMove,maxDepth);
 
-        Console.Write("\n\n");
-        Console.Write("Best move: " + bestMove);
-        Console.Write("\n\n");
+        // Console.Write("\n\n");
+        // Console.Write("Best move: " + bestMove);
+        // Console.Write("\n\n");
         return bestMove;
     } 
 
